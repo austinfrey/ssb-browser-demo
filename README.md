@@ -132,6 +132,11 @@ diff size down quite a bit. Initial without lastMsg key is 244kb.
 - port over ssb-friend-pub
 - disable or trust pubs as a way to control when to fetch threads
 
+# Partial replication
+
+Contact messages for roughly 100 feeds is 28000 messages. The latest
+25 post messages is in contrast just roughly 4000.
+
 # Other
 
 ## Force WASM locally (outside browser)
