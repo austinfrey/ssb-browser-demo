@@ -14,7 +14,7 @@ module.exports = function () {
       messages: [],
       canDownloadMessages: true,
       canDownloadProfile: true,
-      friends: [],
+      follows: [],
 
       showExportKey: false,
       showImportKey: false,
@@ -50,11 +50,12 @@ module.exports = function () {
              <span v-html="description"></span>
            </div>
          </span>
-         <h2 v-if="friends">Following</h2>
+         <h2>Following</h2>
          <div id="follows">
-           <div v-for="friend in friends">
-             <ssb-profile-link v-bind:key="friend" v-bind:feedId="friend"></ssb-profile-link>
+           <div v-for="feed in follows">
+             <ssb-profile-link v-bind:key="feed" v-bind:feedId="feed"></ssb-profile-link>
            </div>
+           <button class="clickButton" v-on:click="downloadFollowing">Download following graph</button>
          </div>
          <div style="clear: both;"></div>
          <h2>Last 25 messages for {{ name }} <div style='font-size: 15px'>({{ feedId }})</div></h2>
@@ -225,6 +226,22 @@ module.exports = function () {
         })
       },
 
+      downloadFollowing: function() {
+        console.time("download following")
+        SSB.connected((rpc) => {
+          pull(
+            rpc.partialReplication.getMessagesOfType({id: this.feedId, type: 'contact'}),
+            pull.asyncMap(SSB.db.validateAndAdd),
+            pull.collect((err, msgs) => {
+              if (err) alert(err.message)
+
+              console.timeEnd("download following")
+              this.populateFollows()
+            })
+          )
+        })
+      },
+
       downloadMessages: function() {
         if (this.feedId == SSB.net.id)
           SSB.syncFeedFromSequence(this.feedId, 0, this.renderProfile)
@@ -303,6 +320,16 @@ module.exports = function () {
             this.messages = msgs
           })
         )
+      },
+
+      populateFollows() {
+        SSB.db.friends.hops({start: this.feedId}, (err, data) => {
+          let follows = []
+          for (var f in data)
+            if (data[f] > 0 && f != this.feedId)
+              follows.push(f)
+        this.follows = follows
+        })
       }
     },
 
@@ -314,14 +341,7 @@ module.exports = function () {
     },
 
     created: function () {
-      if (this.feedId === SSB.net.id) {
-        pull(
-          SSB.db.friends.createFriendStream(),
-          pull.collect((err, a) => {
-            this.friends = a.filter(x => x != this.feedId)
-          })
-        )
-      }
+      this.populateFollows()
 
       this.renderProfile()
     },
